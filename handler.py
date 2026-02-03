@@ -1,4 +1,5 @@
 import runpod
+import torch
 import base64
 import io
 import os
@@ -35,20 +36,24 @@ print(f"--> Loading model from: {model_path}")
 kwargs = dict(
     attn_implementation="sdpa",
     trust_remote_code=True,
-    torch_dtype="auto",  # Use "auto" as per official example
-    device_map="auto",
+    torch_dtype=torch.bfloat16,  # Explicit dtype for single GPU
+    device_map="cuda:0",  # Force everything to single GPU
     moe_impl="eager",  # Use "flashinfer" if FlashInfer is installed
     moe_drop_tokens=True,
 )
 
 model = AutoModelForCausalLM.from_pretrained(model_path, **kwargs)
 
-# Workaround: Set model_version if missing (required by load_tokenizer)
+# Workaround: Set model_version if missing (required by load_tokenizer due to path escaping issue)
 if not hasattr(model.config, 'model_version'):
     model.config.model_version = "instruct"  # Default for Instruct/Distil models
+    print(f"--> Set missing config.model_version = 'instruct'")
 
 model.load_tokenizer(model_path)
-print("--> Model and Tokenizer ready.")
+
+# Ensure model is in eval mode
+model.eval()
+print(f"--> Model and Tokenizer ready on {next(model.parameters()).device}")
 
 # --- UTILITIES ---
 
