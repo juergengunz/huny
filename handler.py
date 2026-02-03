@@ -113,6 +113,7 @@ def handler(job):
     steps = job_input.get("steps", 8)
     out_format = job_input.get("format", "PNG")
     bot_task = job_input.get("bot_task")  # e.g. "think_recaption" for CoT reasoning, None by default
+    drop_think = job_input.get("drop_think", True)  # Drop thinking output, default False
     
     # Check for image input (URL or Base64)
     image_input = job_input.get("image")
@@ -128,6 +129,7 @@ def handler(job):
             image_size=f"{width}x{height}",
             use_system_prompt="en_unified",
             bot_task=bot_task,
+            drop_think=drop_think,
             diff_infer_steps=steps,
             verbose=2
         )
