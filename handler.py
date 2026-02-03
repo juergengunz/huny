@@ -112,6 +112,7 @@ def handler(job):
     seed = job_input.get("seed", 42)
     steps = job_input.get("steps", 8)
     out_format = job_input.get("format", "PNG")
+    bot_task = job_input.get("bot_task")  # e.g. "think_recaption" for CoT reasoning, None by default
     
     # Check for image input (URL or Base64)
     image_input = job_input.get("image")
@@ -126,9 +127,9 @@ def handler(job):
             seed=seed,
             image_size=f"{width}x{height}",
             use_system_prompt="en_unified",
-            bot_task="think_recaption",  # The "Think" reasoning step
+            bot_task=bot_task,
             diff_infer_steps=steps,
-            verbose=1
+            verbose=2
         )
 
     # Return output in RunPod standard format
