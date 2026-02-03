@@ -17,7 +17,4 @@ RUN pip install -r /requirements.txt
 # Copy your handler
 COPY handler.py /handler.py
 
-# Optional: Pre-download model into the image if NOT using RunPod Cache
-# RUN python3 -c "from transformers import AutoModel; AutoModel.from_pretrained('tencent/HunyuanImage-3.0-Instruct-Distil', trust_remote_code=True)"
-
 CMD [ "python3", "-u", "/handler.py" ]

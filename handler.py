@@ -1,5 +1,4 @@
 import runpod
-import torch
 import base64
 import io
 import os
@@ -11,16 +10,23 @@ from transformers import AutoModelForCausalLM
 MODEL_NAME = "tencent/HunyuanImage-3.0-Instruct-Distil"
 # RunPod Model Cache path
 CACHE_DIR = "/runpod-volume/huggingface-cache/hub"
+# Clean path without dots (required by Transformers)
+CLEAN_MODEL_PATH = "/HunyuanImage-3-Instruct-Distil"
 
 def get_model_path():
-    """Locates the model in RunPod's cache or defaults to the model name."""
+    """Locates the model in RunPod's cache and creates a symlink without dots."""
     if os.path.exists(CACHE_DIR):
         safe_name = f"models--{MODEL_NAME.replace('/', '--')}"
         full_path = os.path.join(CACHE_DIR, safe_name, "snapshots")
         if os.path.exists(full_path):
             snapshots = os.listdir(full_path)
             if snapshots:
-                return os.path.join(full_path, snapshots[0])
+                cache_path = os.path.join(full_path, snapshots[0])
+                # Create symlink to path without dots (required by Transformers)
+                if not os.path.exists(CLEAN_MODEL_PATH):
+                    os.symlink(cache_path, CLEAN_MODEL_PATH)
+                    print(f"--> Created symlink: {CLEAN_MODEL_PATH} -> {cache_path}")
+                return CLEAN_MODEL_PATH
     return MODEL_NAME
 
 model_path = get_model_path()
@@ -29,13 +35,18 @@ print(f"--> Loading model from: {model_path}")
 kwargs = dict(
     attn_implementation="sdpa",
     trust_remote_code=True,
-    torch_dtype=torch.bfloat16,
+    torch_dtype="auto",  # Use "auto" as per official example
     device_map="auto",
-    moe_impl="eager",
+    moe_impl="eager",  # Use "flashinfer" if FlashInfer is installed
     moe_drop_tokens=True,
 )
 
 model = AutoModelForCausalLM.from_pretrained(model_path, **kwargs)
+
+# Workaround: Set model_version if missing (required by load_tokenizer)
+if not hasattr(model.config, 'model_version'):
+    model.config.model_version = "instruct"  # Default for Instruct/Distil models
+
 model.load_tokenizer(model_path)
 print("--> Model and Tokenizer ready.")
 
