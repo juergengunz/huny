@@ -9,7 +9,10 @@ RUN apt-get update && apt-get install -y git git-lfs && git lfs install
 # Install Python requirements
 # Note: FlashInfer and FlashAttention are highly recommended for MoE speed
 RUN pip install --upgrade pip
-RUN pip install runpod transformers accelerate diffusers Pillow requests
+
+# Copy requirements file and install dependencies
+COPY requirements.txt /requirements.txt
+RUN pip install -r /requirements.txt
 
 # Copy your handler
 COPY handler.py /handler.py
