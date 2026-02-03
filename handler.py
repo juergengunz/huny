@@ -3,6 +3,7 @@ import torch
 import base64
 import io
 import os
+import requests
 from PIL import Image
 from transformers import AutoModelForCausalLM
 
@@ -40,12 +41,30 @@ print("--> Model and Tokenizer ready.")
 
 # --- UTILITIES ---
 
+def is_url(s):
+    """Check if a string is a URL."""
+    return s.startswith(("http://", "https://"))
+
+def load_image_from_url(url):
+    """Download and load an image from a URL."""
+    response = requests.get(url, timeout=30)
+    response.raise_for_status()
+    return Image.open(io.BytesIO(response.content)).convert("RGB")
+
 def base64_to_image(b64_str):
+    """Convert a base64 string to a PIL Image."""
     if "," in b64_str:
         b64_str = b64_str.split(",")[1]
     return Image.open(io.BytesIO(base64.b64decode(b64_str))).convert("RGB")
 
+def load_image(image_input):
+    """Load an image from either a URL or base64 string."""
+    if is_url(image_input):
+        return load_image_from_url(image_input)
+    return base64_to_image(image_input)
+
 def image_to_base64(img, fmt="PNG"):
+    """Convert a PIL Image to a base64 string."""
     buffered = io.BytesIO()
     img.save(buffered, format=fmt.upper() if fmt.upper() != "JPG" else "JPEG")
     return base64.b64encode(buffered.getvalue()).decode("utf-8")
@@ -61,29 +80,27 @@ def handler(job):
     steps = job_input.get("steps", 8)
     out_format = job_input.get("format", "PNG")
     
-    # Check for image input (Base64)
-    b64_img = job_input.get("image")
+    # Check for image input (URL or Base64)
+    image_input = job_input.get("image")
+    input_image = load_image(image_input) if image_input else None
     
-    try:
-        # Use official generate_image method for Instruct/CoT
-        cot_text, samples = model.generate_image(
-            prompt=prompt,
-            image=base64_to_image(b64_img) if b64_img else None,
-            seed=seed,
-            image_size=f"{width}x{height}",
-            use_system_prompt="en_unified",
-            bot_task="think_recaption", # The "Think" reasoning step
-            diff_infer_steps=steps,
-            verbose=1
-        )
+    # Use official generate_image method for Instruct/CoT
+    cot_text, samples = model.generate_image(
+        prompt=prompt,
+        image=input_image,
+        seed=seed,
+        image_size=f"{width}x{height}",
+        use_system_prompt="en_unified",
+        bot_task="think_recaption",  # The "Think" reasoning step
+        diff_infer_steps=steps,
+        verbose=1
+    )
 
-        return {
-            "image": image_to_base64(samples[0], out_format),
-            "reasoning": cot_text,
-            "seed": seed,
-            "status": "success"
-        }
-    except Exception as e:
-        return {"error": str(e), "status": "failed"}
+    # Return output in RunPod standard format
+    return {
+        "image": image_to_base64(samples[0], out_format),
+        "reasoning": cot_text,
+        "seed": seed
+    }
 
 runpod.serverless.start({"handler": handler})
