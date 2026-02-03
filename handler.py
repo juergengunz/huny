@@ -7,6 +7,9 @@ import requests
 from PIL import Image
 from transformers import AutoModelForCausalLM
 
+# Set default device to CUDA to fix SigLIP2 attention_mask device mismatch
+torch.set_default_device('cuda:0')
+
 # --- GLOBAL MODEL LOADING (Executes once during Cold Start) ---
 MODEL_NAME = "tencent/HunyuanImage-3.0-Instruct-Distil"
 # RunPod Model Cache path
@@ -50,6 +53,20 @@ if not hasattr(model.config, 'model_version'):
     print(f"--> Set missing config.model_version = 'instruct'")
 
 model.load_tokenizer(model_path)
+
+# Ensure ALL model components are on CUDA (fixes SigLIP2 vision encoder device mismatch)
+DEVICE = torch.device("cuda:0")
+model = model.to(DEVICE)
+
+# Explicitly move vision model if it exists (SigLIP2 encoder)
+if hasattr(model, 'vision_model') and model.vision_model is not None:
+    model.vision_model = model.vision_model.to(DEVICE)
+    print(f"--> Moved vision_model to {DEVICE}")
+
+# Also check for vision_encoder attribute
+if hasattr(model, 'vision_encoder') and model.vision_encoder is not None:
+    model.vision_encoder = model.vision_encoder.to(DEVICE)
+    print(f"--> Moved vision_encoder to {DEVICE}")
 
 # Ensure model is in eval mode
 model.eval()
@@ -101,16 +118,18 @@ def handler(job):
     input_image = load_image(image_input) if image_input else None
     
     # Use official generate_image method for Instruct/CoT
-    cot_text, samples = model.generate_image(
-        prompt=prompt,
-        image=input_image,
-        seed=seed,
-        image_size=f"{width}x{height}",
-        use_system_prompt="en_unified",
-        bot_task="think_recaption",  # The "Think" reasoning step
-        diff_infer_steps=steps,
-        verbose=1
-    )
+    # Wrap in inference_mode and set default device to avoid CPU/GPU tensor mismatch
+    with torch.inference_mode(), torch.cuda.device(DEVICE):
+        cot_text, samples = model.generate_image(
+            prompt=prompt,
+            image=input_image,
+            seed=seed,
+            image_size=f"{width}x{height}",
+            use_system_prompt="en_unified",
+            bot_task="think_recaption",  # The "Think" reasoning step
+            diff_infer_steps=steps,
+            verbose=1
+        )
 
     # Return output in RunPod standard format
     return {
