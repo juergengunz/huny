@@ -11,11 +11,11 @@ from transformers import AutoModelForCausalLM
 torch.set_default_device('cuda:0')
 
 # --- GLOBAL MODEL LOADING (Executes once during Cold Start) ---
-MODEL_NAME = "tencent/HunyuanImage-3.0-Instruct"
+MODEL_NAME = "tencent/HunyuanImage-3.0-Instruct-Distil"
 # RunPod Model Cache path
 CACHE_DIR = "/runpod-volume/huggingface-cache/hub"
 # Clean path without dots (required by Transformers)
-CLEAN_MODEL_PATH = "/HunyuanImage-3-Instruct"
+CLEAN_MODEL_PATH = "/HunyuanImage-3-Instruct-Distil"
 
 def get_model_path():
     """Locates the model in RunPod's cache and creates a symlink without dots."""
@@ -114,6 +114,7 @@ def handler(job):
     out_format = job_input.get("format", "PNG")
     bot_task = job_input.get("bot_task")  # e.g. "think_recaption" for CoT reasoning, None by default
     drop_think = job_input.get("drop_think", False)  # Drop thinking output, default False
+    guidance_scale = job_input.get("guidance_scale", 3.5)  # Guidance scale, default 1.0
     
     # Check for image input (URL or Base64)
     image_input = job_input.get("image")
@@ -131,6 +132,7 @@ def handler(job):
             bot_task=bot_task,
             # drop_think=drop_think,
             diff_infer_steps=steps,
+            diff_guidance_scale=guidance_scale,
             verbose=2
         )
 
