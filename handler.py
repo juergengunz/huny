@@ -11,11 +11,11 @@ from transformers import AutoModelForCausalLM
 torch.set_default_device('cuda:0')
 
 # --- GLOBAL MODEL LOADING (Executes once during Cold Start) ---
-MODEL_NAME = "tencent/HunyuanImage-3.0-Instruct-Distil"
+MODEL_NAME = "tencent/HunyuanImage-3.0-Instruct"
 # RunPod Model Cache path
 CACHE_DIR = "/runpod-volume/huggingface-cache/hub"
 # Clean path without dots (required by Transformers)
-CLEAN_MODEL_PATH = "/HunyuanImage-3-Instruct-Distil"
+CLEAN_MODEL_PATH = "/HunyuanImage-3-Instruct"
 
 def get_model_path():
     """Locates the model in RunPod's cache and creates a symlink without dots."""
