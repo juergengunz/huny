@@ -114,11 +114,28 @@ def handler(job):
     out_format = job_input.get("format", "PNG")
     bot_task = job_input.get("bot_task")  # e.g. "think_recaption" for CoT reasoning, None by default
     drop_think = job_input.get("drop_think", False)  # Drop thinking output, default False
-    guidance_scale = job_input.get("guidance_scale", 3.5)  # Guidance scale, default 1.0
+    guidance_scale = job_input.get("guidance_scale", 3.5)  # Diffusion guidance scale (default 3.5)
+    flow_shift = job_input.get("flow_shift", 3.0)  # Flow shift (default 3.0)
     
     # Check for image input (URL or Base64)
     image_input = job_input.get("image")
     input_image = load_image(image_input) if image_input else None
+    
+    # Debug: Log the parameters being used
+    print(f"--> Input params: steps={steps}, guidance_scale={guidance_scale}, flow_shift={flow_shift}, bot_task={bot_task}, drop_think={drop_think}")
+    
+    # Update model's generation_config to ensure params are applied
+    model.generation_config.diff_infer_steps = steps
+    model.generation_config.diff_guidance_scale = guidance_scale
+    model.generation_config.flow_shift = flow_shift
+    model.generation_config.drop_think = drop_think
+    if bot_task is not None:
+        model.generation_config.bot_task = bot_task
+    
+    # Debug: Verify generation_config was updated
+    print(f"--> generation_config: diff_infer_steps={model.generation_config.diff_infer_steps}, "
+          f"diff_guidance_scale={model.generation_config.diff_guidance_scale}, "
+          f"flow_shift={model.generation_config.flow_shift}")
     
     # Use official generate_image method for Instruct/CoT
     # Wrap in inference_mode and set default device to avoid CPU/GPU tensor mismatch
@@ -130,9 +147,10 @@ def handler(job):
             image_size=f"{width}x{height}",
             use_system_prompt="en_unified",
             bot_task=bot_task,
+            drop_think=drop_think,
             diff_infer_steps=steps,
             diff_guidance_scale=guidance_scale,
-            guidance_scale=guidance_scale,
+            flow_shift=flow_shift,
             verbose=2
         )
 
