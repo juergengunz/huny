@@ -130,9 +130,9 @@ def handler(job):
             image_size=f"{width}x{height}",
             use_system_prompt="en_unified",
             bot_task=bot_task,
-            # drop_think=drop_think,
             diff_infer_steps=steps,
             diff_guidance_scale=guidance_scale,
+            guidance_scale=guidance_scale,
             verbose=2
         )
 
